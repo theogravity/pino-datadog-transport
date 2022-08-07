@@ -11,6 +11,7 @@ then
   git config --global user.name "CircleCI Publisher"
 
   # Stash any prior changes to prevent merge conflicts
+  git add .
   git stash
 
   # Make sure to get the latest master (if there were any prior commits)
@@ -27,6 +28,7 @@ then
   # Changelog is now stamped with the version / time info - add to git
   git add CHANGELOG.md
   git add package.json
+  git add package-lock.json
 
   # Amend the version commit with a ci skip so when we push the commits from the CI
   # The CI does not end up recursively building it
