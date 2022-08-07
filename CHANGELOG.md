@@ -1,3 +1,9 @@
+## 1.1.1 - Sun Aug 07 2022 22:19:48
+
+**Contributor:** Theo Gravity
+
+- Add batch sending, retry on send failure (#2)
+
 ## 1.0.5 - Sun Aug 07 2022 09:20:55
 
 **Contributor:** Theo Gravity
