@@ -5,7 +5,7 @@
 ![built with typescript](https://camo.githubusercontent.com/92e9f7b1209bab9e3e9cd8cdf62f072a624da461/68747470733a2f2f666c61742e62616467656e2e6e65742f62616467652f4275696c74253230576974682f547970655363726970742f626c7565)
 [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
 
-A [pino v7+](https://github.com/pinojs/pino) transport for sending logs to [DataDog](https://datadog.com/).
+A [pino v7+](https://github.com/pinojs/pino) transport for sending logs to [Datadog](https://datadog.com/).
 
 It uses [datadog-api-client-typescript](https://github.com/DataDog/datadog-api-client-typescript) to
 send logs using the client [v2.LogsApi#submitLog](https://datadoghq.dev/datadog-api-client-typescript/classes/v2.LogsApi.html) method.
@@ -43,10 +43,10 @@ const logger = pino(pinoConf, pino.transport({
 
 ## Configuration options
 
-```
+```typescript
 interface DDTransportOptions {
   /**
-   * DataDog client configuration parameters.
+   * Datadog client configuration parameters.
    * @see https://datadoghq.dev/datadog-api-client-typescript/interfaces/client.Configuration.html
    */
   ddClientConf: ConfigurationParameters
