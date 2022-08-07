@@ -10,11 +10,18 @@ A [pino v7+](https://github.com/pinojs/pino) transport for sending logs to [Data
 It uses [datadog-api-client-typescript](https://github.com/DataDog/datadog-api-client-typescript) to
 send logs using the client [v2.LogsApi#submitLog](https://datadoghq.dev/datadog-api-client-typescript/classes/v2.LogsApi.html) method.
 
+- Performs batch sending of logs when the [log sending limits are approaching](https://docs.datadoghq.com/api/latest/logs/#send-logs).
+- Will retry failed sends.
+- Can disable batch sending and always send for each log entry.
+
+## Table of Contents
+
 <!-- TOC -->
 
 - [Installation](#installation)
 - [Configuration options](#configuration-options)
-- [Implementing the `onError()` callback](#implementing-the-onerror-callback)
+- [Implementing the `onError()` / `onDebug()` callback](#implementing-the-onerror--ondebug-callback)
+- [Sending logs to Datadog with pino-socket instead](#sending-logs-to-datadog-with-pino-socket-instead)
 
 <!-- TOC END -->
 
@@ -72,13 +79,35 @@ interface DDTransportOptions {
    * Error handler for when the submitLog() call fails. See readme on how to
    * properly implement this callback.
    */
-  onError?: (err: string) => void
+  onError?: (err: any) => void
+  /**
+   * Define this callback to get debug messages from this transport
+   */
+  onDebug?: (msg: string) => void
+  /**
+   * Number of times to retry sending the log before onError() is called.
+   * Default is 5.
+   */
+  retries?: number
+  /**
+   * Logs will be batched / queued until 4.9 MB (Datadog has a 5 MB limit per batch send) before
+   * being sent. Define this interval in milliseconds to initiate sending regardless of
+   * queue data size.
+   *
+   * Default is 3000 milliseconds.
+   */
+  sendIntervalMs?: number
+  /**
+   * Set to true to immediately send each new log entry to Datadog (disables batching).
+   * This will result in a single request per log entry and disables the sendIntervalMs setting.
+   */
+  sendImmediate?: boolean
 }
 ```
 
-## Implementing the `onError()` callback
+## Implementing the `onError()` / `onDebug()` callback
 
-You cannot specify the `onError()` callback directly as it is [not serializable](https://github.com/pinojs/pino-pretty#handling-non-serializable-options).
+You cannot specify the callbacks directly as it is [not serializable](https://github.com/pinojs/pino-pretty#handling-non-serializable-options).
 
 Doing so will result in the following error:
 
@@ -107,6 +136,8 @@ const p = pino({}, pino.transport({
 /* eslint-disable */
 // pino-datadog-logger.js
 // https://github.com/pinojs/pino-pretty#handling-non-serializable-options
+// Functions as options on the pino transport config are not serializable as they
+// are workers, so we create this worker file which includes our callbacks
 
 module.exports = (opts) => {
   return require('pino-datadog-logger')({
@@ -117,3 +148,25 @@ module.exports = (opts) => {
   })
 }
 ```
+
+## Sending logs to Datadog with pino-socket instead
+
+It is possible to send logs to Datadog using [raw TCP](https://docs.datadoghq.com/logs/log_collection/?tab=tcp) instead of HTTPS. Datadog
+recommends HTTPS as the logs are compress-able, whereas TCP-sent logs are not.
+HTTPS also has content length limits, whereas TCP does not.
+
+Datadog recommends sending logs over HTTPS instead of raw TCP, as the latest
+version of the Datadog agent uses HTTPS with a TCP fallback:
+
+```
+// https://docs.datadoghq.com/agent/logs/log_transport?tab=https
+For Agent v6.19+/v7.19+, the default transport used for your logs is
+compressed HTTPS instead of TCP for the previous versions.
+When the Agent starts, if log collection is enabled, it runs a
+HTTPS connectivity test. If successful, then the Agent uses
+the compressed HTTPS transport, otherwise the Agent falls back to a TCP transport.
+```
+
+However, you can send logs using raw TCP + TLS using [`pino-socket`](https://github.com/pinojs/pino-socket).
+
+See instructions [here](https://github.com/pinojs/pino/issues/1511#issuecomment-1207472871) on how to do this.
