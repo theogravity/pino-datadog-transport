@@ -19,3 +19,5 @@ coverage/
 api-doc.md
 docs/
 typedoc.js
+.eslintrc.js
+.eslintignore
