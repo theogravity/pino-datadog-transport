@@ -98,37 +98,48 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
   let timer = null
 
   function sendLogs(logsToSend: Array<HTTPLogItem>) {
-    return async () => {
-      if (options.onDebug) {
-        options.onDebug(`Sending ${logsToSend.length} logs to datadog`)
-      }
+    logItems = []
+    logItemsLength = 0
 
-      const params: LogsApiSubmitLogRequest = {
-        body: logsToSend,
-        contentEncoding: 'gzip',
-      }
-
-      try {
-        const result = await apiInstance.submitLog(params)
-
+    pRetry(
+      async () => {
         if (options.onDebug) {
-          options.onDebug(`Sending ${logsToSend.length} logs to datadog completed`)
+          options.onDebug(`Sending ${logsToSend.length} logs to datadog`)
         }
 
-        return result
-      } catch (err) {
-        throw {
-          err,
-          logs: logsToSend,
+        const params: LogsApiSubmitLogRequest = {
+          body: logsToSend,
+          contentEncoding: 'gzip',
         }
+
+        try {
+          const result = await apiInstance.submitLog(params)
+
+          if (options.onDebug) {
+            options.onDebug(`Sending ${logsToSend.length} logs to datadog completed`)
+          }
+
+          return result
+        } catch (err) {
+          throw {
+            err,
+            logs: logsToSend,
+          }
+        }
+      },
+      { retries: options.retries ?? 5 },
+    ).catch(({ err, logs }) => {
+      if (options.onError) {
+        options.onError(err, logs)
       }
-    }
+    })
   }
 
   if (!options.sendImmediate) {
     timer = setInterval(() => {
       if (logItems.length > 0) {
-        sendLogs(logItems)()
+        // ...logItems is so if we clear logItems in another run, we won't lose these logs
+        sendLogs([...logItems])
       }
     }, options.sendIntervalMs || FORCE_SEND_MS)
   }
@@ -144,7 +155,7 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
         clearInterval(timer)
       }
 
-      sendLogs(logItems)()
+      sendLogs([...logItems])
     }
   })
 
@@ -199,15 +210,7 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
         options.sendImmediate || logItemsLength > LOGS_PAYLOAD_SIZE_LIMIT || logItems.length > MAX_LOG_ITEMS
 
       if (shouldSend) {
-        // ...logItems is so if we clear logItems in another run, we won't lose these logs
-        pRetry(sendLogs([...logItems]), { retries: options.retries ?? 5 }).catch(({ err, logs }) => {
-          if (options.onError) {
-            options.onError(err, logs)
-          }
-        })
-
-        logItems = []
-        logItemsLength = 0
+        sendLogs([...logItems])
       }
     }
   }
