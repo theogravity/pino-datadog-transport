@@ -46,7 +46,7 @@ export interface DDTransportOptions {
    * Error handler for when the submitLog() call fails. See readme on how to
    * properly implement this callback.
    */
-  onError?: (err: any) => void
+  onError?: (err: any, logs?: Array<Record<string, any>>) => void
   /**
    * Define this callback to get debug messages from this transport
    */
@@ -57,16 +57,13 @@ export interface DDTransportOptions {
    */
   retries?: number
   /**
-   * Logs will be batched / queued until 4.9 MB (Datadog has a 5 MB limit per batch send) before
-   * being sent. Define this interval in milliseconds to initiate sending regardless of
-   * queue data size.
-   *
+   * Interval in which logs are sent to Datadog.
    * Default is 3000 milliseconds.
    */
   sendIntervalMs?: number
   /**
-   * Set to true to immediately send each new log entry to Datadog (disables batching).
-   * This will result in a single request per log entry and disables the sendIntervalMs setting.
+   * Set to true to disable batch sending and send each log as it comes in. This disables
+   * the send interval.
    */
   sendImmediate?: boolean
 }
@@ -101,28 +98,30 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
   let timer = null
 
   function sendLogs(logsToSend: Array<HTTPLogItem>) {
-    // Do this so if we clear logItems in another run, we won't lose these logs
-    const body = [...logsToSend]
-    logItems = []
-    logItemsLength = 0
-
     return async () => {
       if (options.onDebug) {
-        options.onDebug(`Sending ${body.length} logs to datadog`)
+        options.onDebug(`Sending ${logsToSend.length} logs to datadog`)
       }
 
       const params: LogsApiSubmitLogRequest = {
-        body,
+        body: logsToSend,
         contentEncoding: 'gzip',
       }
 
-      const result = await apiInstance.submitLog(params)
+      try {
+        const result = await apiInstance.submitLog(params)
 
-      if (options.onDebug) {
-        options.onDebug(`Sending ${body.length} logs to datadog completed`)
+        if (options.onDebug) {
+          options.onDebug(`Sending ${logsToSend.length} logs to datadog completed`)
+        }
+
+        return result
+      } catch (err) {
+        throw {
+          err,
+          logs: logsToSend,
+        }
       }
-
-      return result
     }
   }
 
@@ -187,7 +186,9 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
 
       if (logEntryLength > LOG_SIZE_LIMIT) {
         if (options.onError) {
-          options.onError(new Error(`Log entry exceeds size limit of ${LOG_SIZE_LIMIT} bytes: ${logEntryLength}`))
+          options.onError(new Error(`Log entry exceeds size limit of ${LOG_SIZE_LIMIT} bytes: ${logEntryLength}`), [
+            logItem,
+          ])
         }
       }
 
@@ -198,11 +199,15 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
         options.sendImmediate || logItemsLength > LOGS_PAYLOAD_SIZE_LIMIT || logItems.length > MAX_LOG_ITEMS
 
       if (shouldSend) {
-        pRetry(sendLogs(logItems), { retries: options.retries ?? 5 }).catch((e) => {
+        // ...logItems is so if we clear logItems in another run, we won't lose these logs
+        pRetry(sendLogs([...logItems]), { retries: options.retries ?? 5 }).catch(({ err, logs }) => {
           if (options.onError) {
-            options.onError(e)
+            options.onError(err, logs)
           }
         })
+
+        logItems = []
+        logItemsLength = 0
       }
     }
   }
