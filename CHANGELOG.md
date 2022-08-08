@@ -1,3 +1,9 @@
+## 1.1.3 - Mon Aug 08 2022 00:35:00
+
+**Contributor:** Theo Gravity
+
+- Fix repeat sends (#4)
+
 ## 1.1.2 - Mon Aug 08 2022 00:04:42
 
 **Contributor:** Theo Gravity
