@@ -10,7 +10,7 @@ A [pino v7+](https://github.com/pinojs/pino) transport for sending logs to [Data
 It uses [datadog-api-client-typescript](https://github.com/DataDog/datadog-api-client-typescript) to
 send logs using the client [v2.LogsApi#submitLog](https://datadoghq.dev/datadog-api-client-typescript/classes/v2.LogsApi.html) method.
 
-- Performs batch sending of logs when the [log sending limits are approaching](https://docs.datadoghq.com/api/latest/logs/#send-logs).
+- Performs batch sending of logs on a periodic basis.
 - Will retry failed sends.
 - Can disable batch sending and always send for each log entry.
 
@@ -51,9 +51,9 @@ const logger = pino(pinoConf, pino.transport({
 ## Configuration options
 
 ```typescript
-interface DDTransportOptions {
+export interface DDTransportOptions {
   /**
-   * Datadog client configuration parameters.
+   * DataDog client configuration parameters.
    * @see https://datadoghq.dev/datadog-api-client-typescript/interfaces/client.Configuration.html
    */
   ddClientConf: ConfigurationParameters
@@ -79,7 +79,7 @@ interface DDTransportOptions {
    * Error handler for when the submitLog() call fails. See readme on how to
    * properly implement this callback.
    */
-  onError?: (err: any) => void
+  onError?: (err: any, logs?: Array<Record<string, any>>) => void
   /**
    * Define this callback to get debug messages from this transport
    */
@@ -90,16 +90,13 @@ interface DDTransportOptions {
    */
   retries?: number
   /**
-   * Logs will be batched / queued until 4.9 MB (Datadog has a 5 MB limit per batch send) before
-   * being sent. Define this interval in milliseconds to initiate sending regardless of
-   * queue data size.
-   *
+   * Interval in which logs are sent to Datadog.
    * Default is 3000 milliseconds.
    */
   sendIntervalMs?: number
   /**
-   * Set to true to immediately send each new log entry to Datadog (disables batching).
-   * This will result in a single request per log entry and disables the sendIntervalMs setting.
+   * Set to true to disable batch sending and send each log as it comes in. This disables
+   * the send interval.
    */
   sendImmediate?: boolean
 }
@@ -107,7 +104,7 @@ interface DDTransportOptions {
 
 ## Implementing the `onError()` / `onDebug()` callback
 
-You cannot specify the callbacks directly as it is [not serializable](https://github.com/pinojs/pino-pretty#handling-non-serializable-options).
+You cannot specify the callbacks directly as they are [not serializable](https://github.com/pinojs/pino-pretty#handling-non-serializable-options).
 
 Doing so will result in the following error:
 
@@ -142,12 +139,16 @@ const p = pino({}, pino.transport({
 module.exports = (opts) => {
   return require('pino-datadog-logger')({
     ...opts,
-    onError: (data) => {
+    onError: (data, logItems) => {
       // Your error handling here
     }
   })
 }
 ```
+
+**Note: Log entries can only be a maximum of 1MB in size. This is a Datadog imposed limit.
+This library will call onError() if a log entry is 0.95MB (to account for
+serialization and metadata).**
 
 ## Sending logs to Datadog with pino-socket instead
 
