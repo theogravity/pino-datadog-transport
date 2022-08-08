@@ -1,6 +1,6 @@
 {
   "name": "pino-datadog-transport",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A pino v7+ transport for sending logs to Datadog",
   "main": "build/index.js",
   "types": "build/index.d.ts",
