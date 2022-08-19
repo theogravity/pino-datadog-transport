@@ -1,3 +1,11 @@
+## 1.1.4 - Fri Aug 19 2022 00:19:40
+
+**Contributor:** Theo Gravity
+
+- Attempt to fix memory leak (#7)
+
+This changes the internal implementation of how we store logs for batches.
+
 ## 1.1.3 - Mon Aug 08 2022 00:35:00
 
 **Contributor:** Theo Gravity
