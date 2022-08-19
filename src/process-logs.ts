@@ -4,6 +4,7 @@ import { ConfigurationParameters } from '@datadog/datadog-api-client/dist/packag
 import { v2 } from '@datadog/datadog-api-client'
 import pRetry from 'p-retry'
 import exitHook from 'exit-hook'
+import { LogStorage } from './log-storage'
 
 // Define log sending limits
 // https://docs.datadoghq.com/api/latest/logs/#send-logs
@@ -92,60 +93,64 @@ export const convertLevel = (level: number | string): string => {
   return 'debug'
 }
 
-export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.LogsApi) {
-  let logItemsLength = 0
-  let logItems = []
-  let timer = null
+interface SendLogOpts {
+  apiInstance: v2.LogsApi
+  logsToSend: Array<HTTPLogItem>
+  bucketName: string
+  options: DDTransportOptions
+}
 
-  function sendLogs(logsToSend: Array<HTTPLogItem>) {
-    logItems = []
-    logItemsLength = 0
-
-    pRetry(
-      async () => {
-        if (options.onDebug) {
-          options.onDebug(`Sending ${logsToSend.length} logs to datadog`)
-        }
-
-        const params: LogsApiSubmitLogRequest = {
-          body: logsToSend,
-          contentEncoding: 'gzip',
-        }
-
-        try {
-          const result = await apiInstance.submitLog(params)
-
-          if (options.onDebug) {
-            options.onDebug(`Sending ${logsToSend.length} logs to datadog completed`)
-          }
-
-          return result
-        } catch (err) {
-          throw {
-            err,
-            logs: logsToSend,
-          }
-        }
-      },
-      { retries: options.retries ?? 5 },
-    ).catch(({ err, logs }) => {
-      if (options.onError) {
-        options.onError(err, logs)
+function sendLogs({ apiInstance, logsToSend, bucketName, options }: SendLogOpts) {
+  pRetry(
+    async () => {
+      const params: LogsApiSubmitLogRequest = {
+        body: logsToSend,
+        contentEncoding: 'gzip',
       }
-    })
-  }
+
+      const result = await apiInstance.submitLog(params)
+
+      if (options.onDebug) {
+        options.onDebug(`(${bucketName}) Sending ${logsToSend.length} logs to Datadog completed`)
+      }
+
+      return result
+    },
+    { retries: options.retries ?? 5 },
+  ).catch((err) => {
+    if (options.onError) {
+      options.onError(err, logsToSend)
+    }
+  })
+}
+
+export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.LogsApi) {
+  const logStorage = new LogStorage()
+  let timer = null
 
   if (!options.sendImmediate) {
     timer = setInterval(() => {
-      if (logItems.length > 0) {
+      const logCount = logStorage.getLogCount()
+      const currentBucket = logStorage.currentBucket
+
+      if (logCount > 0) {
+        if (options.onDebug) {
+          options.onDebug(`(${currentBucket}) Sending ${logCount} logs to Datadog on timer`)
+        }
+
         // ...logItems is so if we clear logItems in another run, we won't lose these logs
-        sendLogs([...logItems])
+        sendLogs({
+          apiInstance: apiInstance,
+          logsToSend: logStorage.finishLogBatch(),
+          bucketName: currentBucket,
+          options: options,
+        })
       }
     }, options.sendIntervalMs || FORCE_SEND_MS)
   }
 
   exitHook(() => {
-    if (logItems.length > 0) {
+    if (logStorage.getLogCount() > 0) {
       // Attempt to send logs on an exit call
       if (options.onDebug) {
         options.onDebug(`Shutdown detected. Attempting to send remaining logs to Datadog`)
@@ -155,15 +160,30 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
         clearInterval(timer)
       }
 
-      sendLogs([...logItems])
+      const currentBucket = logStorage.currentBucket
+
+      sendLogs({
+        apiInstance: apiInstance,
+        logsToSend: logStorage.finishLogBatch(),
+        bucketName: currentBucket,
+        options: options,
+      })
     }
   })
 
   return async function processLogs(source) {
     for await (const obj of source) {
       if (!obj) {
+        if (options.onDebug) {
+          options.onDebug('Log source object is empty')
+        }
+
         return
       }
+
+      // Datadog uses the date field for timestamp
+      obj.date = obj.time
+      delete obj.time
 
       const logItem: HTTPLogItem = {
         message: JSON.stringify({
@@ -203,14 +223,41 @@ export function processLogBuilder(options: DDTransportOptions, apiInstance: v2.L
         }
       }
 
-      logItems.push(logItem)
-      logItemsLength += logEntryLength
+      if (options.sendImmediate) {
+        if (options.onDebug) {
+          options.onDebug(`(send-immediate) Sending log to Datadog`)
+        }
 
-      const shouldSend =
-        options.sendImmediate || logItemsLength > LOGS_PAYLOAD_SIZE_LIMIT || logItems.length > MAX_LOG_ITEMS
+        // Don't go through the batch logger if sendImmediate is enabled
+        sendLogs({
+          apiInstance: apiInstance,
+          logsToSend: [logItem],
+          bucketName: 'send-immediate',
+          options: options,
+        })
+
+        continue
+      }
+
+      logStorage.addLog(logItem, logEntryLength)
+
+      const logCount = logStorage.getLogCount()
+      const shouldSend = logStorage.getLogBucketByteSize() > LOGS_PAYLOAD_SIZE_LIMIT || logCount > MAX_LOG_ITEMS
 
       if (shouldSend) {
-        sendLogs([...logItems])
+        // Get the bucket name into a variable as finishLogBatch() generates a new one
+        const currentBucket = logStorage.currentBucket
+
+        if (options.onDebug) {
+          options.onDebug(`(${currentBucket}) Sending ${logCount} logs to Datadog`)
+        }
+
+        sendLogs({
+          apiInstance: apiInstance,
+          logsToSend: logStorage.finishLogBatch(),
+          bucketName: currentBucket,
+          options: options,
+        })
       }
     }
   }
