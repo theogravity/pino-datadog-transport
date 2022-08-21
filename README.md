@@ -58,6 +58,23 @@ export interface DDTransportOptions {
    */
   ddClientConf: ConfigurationParameters
   /**
+   * Datadog server config for the client.
+   * @see https://github.com/DataDog/datadog-api-client-typescript/blob/1e1097c68a437894b482701ecbe3d61522429319/packages/datadog-api-client-common/servers.ts#L90
+   */
+  ddServerConf?: {
+    /**
+     * The datadog server to use. Default is datadoghq.com.
+     * Other values could be:
+     * - us3.datadoghq.com
+     * - us5.datadoghq.com
+     * - datadoghq.eu
+     * - ddog-gov.com
+     */
+    site?: string
+    subdomain?: string
+    protocol?: string
+  }
+  /**
    * The integration name associated with your log: the technology from which
    * the log originated. When it matches an integration name, Datadog
    * automatically installs the corresponding parsers and facets.
@@ -75,6 +92,10 @@ export interface DDTransportOptions {
    * @see https://docs.datadoghq.com/logs/log_collection/?tab=host#reserved-attributes
    */
   service?: string
+  /**
+   * Called when the plugin is ready to process logs.
+   */
+  onInit?: () => void
   /**
    * Error handler for when the submitLog() call fails. See readme on how to
    * properly implement this callback.
