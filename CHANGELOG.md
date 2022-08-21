@@ -1,3 +1,9 @@
+## 1.2.2 - Sun Aug 21 2022 20:19:45
+
+**Contributor:** Theo Gravity
+
+- Documentation updates (#9)
+
 ## 1.2.1 - Sun Aug 21 2022 09:23:30
 
 **Contributor:** Theo Gravity
