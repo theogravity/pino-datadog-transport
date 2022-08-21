@@ -26,7 +26,7 @@ export interface DDTransportOptions {
    */
   ddClientConf: ConfigurationParameters
   /**
-   * Datadog server config for the client.
+   * Datadog server config for the client. Use this to change the Datadog server region.
    * @see https://github.com/DataDog/datadog-api-client-typescript/blob/1e1097c68a437894b482701ecbe3d61522429319/packages/datadog-api-client-common/servers.ts#L90
    */
   ddServerConf?: {

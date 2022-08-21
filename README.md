@@ -10,7 +10,7 @@ A [pino v7+](https://github.com/pinojs/pino) transport for sending logs to [Data
 It uses [datadog-api-client-typescript](https://github.com/DataDog/datadog-api-client-typescript) to
 send logs using the client [v2.LogsApi#submitLog](https://datadoghq.dev/datadog-api-client-typescript/classes/v2.LogsApi.html) method.
 
-- Performs batch sending of logs on a periodic basis.
+- Performs batch sending of logs on a periodic basis, or when log capacity is reached in overall log batch size or count.
 - Will retry failed sends.
 - Can disable batch sending and always send for each log entry.
 
@@ -58,7 +58,7 @@ export interface DDTransportOptions {
    */
   ddClientConf: ConfigurationParameters
   /**
-   * Datadog server config for the client.
+   * Datadog server config for the client. Use this to change the Datadog server region.
    * @see https://github.com/DataDog/datadog-api-client-typescript/blob/1e1097c68a437894b482701ecbe3d61522429319/packages/datadog-api-client-common/servers.ts#L90
    */
   ddServerConf?: {
