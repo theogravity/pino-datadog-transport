@@ -1,3 +1,13 @@
+## 1.2.1 - Sun Aug 21 2022 09:23:30
+
+**Contributor:** Theo Gravity
+
+- Add Datadog region support and more debug messages (#8)
+
+- A new config option called `ddServerConf` has been added to configure the server region
+- Added `onInit` callback
+- Added more debugging messages
+
 ## 1.1.4 - Fri Aug 19 2022 00:19:40
 
 **Contributor:** Theo Gravity
