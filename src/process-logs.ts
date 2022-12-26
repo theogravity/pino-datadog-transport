@@ -95,7 +95,7 @@ export const convertLevel = (level: number | string): string => {
     return level
   }
 
-  if (level == 60) {
+  if (level >= 60) {
     return 'fatal'
   }
   if (level >= 50) {
@@ -105,13 +105,13 @@ export const convertLevel = (level: number | string): string => {
     return 'warning'
   }
   if (level >= 30) {
-    return 'log'
-  }
-  if (level >= 20) {
     return 'info'
   }
+  if (level >= 20) {
+    return 'debug'
+  }
 
-  return 'debug'
+  return 'trace'
 }
 
 interface SendLogOpts {
