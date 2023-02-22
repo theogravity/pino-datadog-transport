@@ -1,3 +1,9 @@
+## 1.3.0 - Wed Feb 22 2023 15:00:36
+
+**Contributor:** ooga
+
+- Fix level mapping (#13)
+
 ## 1.2.2 - Sun Aug 21 2022 20:19:45
 
 **Contributor:** Theo Gravity
