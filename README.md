@@ -44,6 +44,10 @@ const logger = pino(pinoConf, pino.transport({
         apiKeyAuth: <your datadog API key>
       }
     },
+    ddServerConf: {
+      // Note: This must match the site you use for your DataDog login - See below for more info
+      site: "datadoghq.eu"
+    }
   }
 }))
 ```
