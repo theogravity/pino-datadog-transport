@@ -1,3 +1,9 @@
+## 1.3.1 - Wed Nov 01 2023 22:55:29
+
+**Contributor:** Daniel Hochman
+
+- fix `setServerVariables is deprecated` warning (#18)
+
 ## 1.3.0 - Wed Feb 22 2023 15:00:36
 
 **Contributor:** ooga
