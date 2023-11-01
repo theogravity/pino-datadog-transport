@@ -40,7 +40,7 @@
     "typescript"
   ],
   "dependencies": {
-    "@datadog/datadog-api-client": "^1.2.0",
+    "@datadog/datadog-api-client": "^1.18.0",
     "exit-hook": "^2.2.1",
     "p-retry": "^4.6.2",
     "pino-abstract-transport": "^1.0.0"
