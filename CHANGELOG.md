@@ -1,3 +1,9 @@
+## 1.3.2 - Wed Nov 01 2023 22:55:38
+
+**Contributor:** CircleCI Publisher
+
+- 1.3.1 [skip ci]
+
 ## 1.3.1 - Wed Nov 01 2023 22:55:29
 
 **Contributor:** Daniel Hochman
